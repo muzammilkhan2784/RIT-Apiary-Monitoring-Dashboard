@@ -4,7 +4,7 @@
 
 For the bonus project, I built a complete interactive data dashboard to visualize RIT Apiary sensor data using MongoDB, Flask, and Chart.js. The app integrates **BroodMinder** and **DIY sensors** across Hives B, C, and E, offering time-based insight into hive conditions such as temperature, humidity, and acoustics.
 
-###  Features Implemented
+### Features Implemented
 
 - **MongoDB Time-Series Collection**
   - Created `hive_readings` with `timestamp` as `timeField` and `hive` as `metaField`.
@@ -33,9 +33,9 @@ For the bonus project, I built a complete interactive data dashboard to visualiz
 
 - **User-Friendly Summary**
   - After plotting, an auto-generated summary appears:
-    - "From Oct 1 to Oct 31, Hive B’s temperature rose 6 times and dropped 4 times..."
+    - "From Oct 28 to Nov 28, Hive B’s temperature rose 8 times and dropped 5 times..."
   - Language is readable for non-experts (no jargon).
-  
+
 - **Polished UI**
   - Aesthetic improvements:
     - Modern layout, spacing, and font use.
@@ -46,14 +46,33 @@ For the bonus project, I built a complete interactive data dashboard to visualiz
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
-You should include these screenshots when submitting:
+### Main Page UI
+> Shows clean layout, Hive + Source selectors, sensors, and date range.
 
-1. **Chart** with hive temperature, moving average, and brood/die-off markers.
-2. **Multi-sensor chart** comparing variables like humidity and battery.
-3. **Event summary** paragraph.
-4. **Full form UI** showing hive/source/sensor/date selection.
+![Main Page](assets/mainpage.png)
+
+---
+
+### Hive Temperature with Moving Avg and Event Markers
+> Temperature chart with green brood-rearing and red die-off markers, and moving average overlay.
+
+![Moving Average and Events](assets/movingavgandeventmarker.png)
+
+---
+
+### Example BroodMinder Hive Chart
+> BroodMinder sensor data plotted with multiple variables.
+
+![BroodMinder Example](assets/broodminderhivebexample.png)
+
+---
+
+### Generated Summary Paragraph
+> Summary written in simple language explaining the hive activity.
+
+![Summary](assets/eventsummary.png)
 
 ---
 
@@ -68,7 +87,6 @@ I believe this project meets the full 3-point bonus criteria because:
   - Automatic colony event detection.
   - Moving average overlay.
   - Clean UI with responsive layout.
-
 
 ---
 
