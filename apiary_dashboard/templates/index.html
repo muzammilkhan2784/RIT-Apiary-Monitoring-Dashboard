@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🐝 RIT Apiary Data Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.3.0"></script>
+</head>
+<body>
+  <h1>🐝 RIT Apiary Data Dashboard</h1>
+
+
+  <div class="controls-row">
+    <label>Hive:
+      <select id="hive">
+        <option value="B">Hive B</option>
+        <option value="C">Hive C</option>
+        <option value="E">Hive E</option>
+      </select>
+    </label>
+    <label>Sensor Source:
+      <select id="source">
+        <option value="both">Both</option>
+        <option value="broodminder">BroodMinder</option>
+        <option value="diy">DIY</option>
+      </select>
+    </label>
+  </div>
+
+  
+  <div class="sensor-row" id="sensorsContainer">
+    <span class="sensor-label">Sensors:</span>
+   
+  </div>
+
+
+  <div class="controls-row">
+    <label>Start:
+      <input type="date" id="start">
+    </label>
+    <label>End:
+      <input type="date" id="end">
+    </label>
+    <label><input type="checkbox" id="showMA"> Moving Avg</label>
+    <label><input type="checkbox" id="showEV"> Event Markers</label>
+  </div>
+
+  <!-- 4) Plot button -->
+  <div class="action-row">
+    <button id="loadBtn" class="btn-plot">Plot</button>
+  </div>
+
+  <!-- 5) Chart -->
+  <div id="chartContainer">
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <!-- 6) Friendly Summary -->
+  <div class="summary">
+    <h2>Event Summary</h2>
+    <p id="summaryText">Select sensors &amp; dates above, then click Plot.</p>
+  </div>
+
+  <script>
+    const sensorMap = {
+      broodminder: [
+        ["temperature","Temperature Reading"],
+        ["humidity","Humidity"],
+        ["battery","Battery Level"],
+        ["chargeremaining","Charge Remaining"],
+        ["radar1","Radar 1"],
+        ["radar2","Radar 2"],
+        ["audio1","Audio 1"],
+        ["audio2","Audio 2"]
+      ],
+      diy: [
+        ["hive_temp","Hive Temperature"],
+        ["hive_humidity","Hive Humidity"],
+        ["hive_acoustics","Hive Acoustics"],
+        ["external_temp","External Temp"],
+        ["external_pressure","External Pressure"],
+        ["battery_life","Battery Life"]
+      ]
+    };
+
+    const hiveEl    = document.getElementById("hive"),
+          srcEl     = document.getElementById("source"),
+          sensorsCt = document.getElementById("sensorsContainer"),
+          startEl   = document.getElementById("start"),
+          endEl     = document.getElementById("end"),
+          maEl      = document.getElementById("showMA"),
+          evEl      = document.getElementById("showEV"),
+          sumText   = document.getElementById("summaryText");
+    let chart;
+
+    function renderSensors(){
+      const list = (srcEl.value === "both")
+        ? sensorMap.broodminder.concat(sensorMap.diy)
+        : sensorMap[srcEl.value];
+      sensorsCt.innerHTML = `<span class="sensor-label">Sensors:</span>`
+        + list.map(([val,label])=>
+            `<label><input type="checkbox" name="sensor" value="${val}"> ${label}</label>`
+          ).join("");
+    }
+    srcEl.onchange = renderSensors;
+    window.onload   = renderSensors;
+
+    const PALETTE = [
+      "#4e79a7","#f28e2b","#e15759","#76b7b2",
+      "#59a14f","#edc949","#af7aa1","#ff9da7"
+    ];
+
+    document.getElementById("loadBtn").onclick = async () => {
+      const hive   = hiveEl.value,
+            source = srcEl.value,
+            start  = startEl.value,
+            end    = endEl.value,
+            showMA = maEl.checked,
+            showEV = evEl.checked;
+
+      const selected = Array.from(
+        document.querySelectorAll("input[name='sensor']:checked")
+      ).map(cb=>cb.value);
+
+      if (!selected.length) {
+        alert("Please select at least one sensor.");
+        return;
+      }
+
+      const params = new URLSearchParams({ hive, source, start, end });
+      selected.forEach(s=>params.append("sensors", s));
+      const res = await fetch(`/data?${params}`);
+      const { series, events, summary } = await res.json();
+
+      series.forEach(s=>{
+        s.mavg = s.points.map((p,i,a)=>{
+          const slice = a.slice(Math.max(0,i-4), i+1).map(o=>o.y);
+          return slice.reduce((sum,x)=>sum+x,0)/slice.length;
+        });
+      });
+
+      if (chart) chart.destroy();
+
+      const datasets = series.flatMap((s,i)=>{
+        const color = PALETTE[i % PALETTE.length];
+        const label = sensorMap.broodminder.concat(sensorMap.diy)
+          .find(x=>x[0]===s.sensor)[1];
+        const main = {
+          label,
+          data: s.points,
+          parsing: { xAxisKey:"x", yAxisKey:"y" },
+          backgroundColor: color + "33",
+          borderColor: color,
+          fill: true,
+          tension: 0.2
+        };
+        if (showMA) {
+          return [ main, {
+            label: `${label} (Moving Average)`,
+            data: s.points.map((p,i)=>({x:p.x,y:s.mavg[i]})),
+            borderColor: color,
+            backgroundColor: "transparent",
+            borderDash: [5,5],
+            fill: false,
+            tension: 0.2
+          }];
+        }
+        return [main];
+      });
+
+      chart = new Chart(myChart, {
+        type: "line",
+        data: { datasets },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              type: "time",
+              time: {
+                unit: "day",
+                stepSize: 7,
+                displayFormats: { day:"MMM d, yyyy" },    // <— show year
+                tooltipFormat: "MMM d, yyyy"
+              },
+              ticks: { autoSkip: true }
+            }
+          },
+          plugins: {
+            legend: { position: "top" },
+            annotation: {
+              annotations: showEV
+                ? events.map(e=>({
+                    type: "line",
+                    xMin: e.date, xMax: e.date,
+                    borderColor: e.type==="brood-rearing"
+                                  ? "#2ca02c" : "#d62728",
+                    borderWidth: 2,
+                    label: {
+                      content: e.type==="brood-rearing"
+                               ? "Brood-rearing" : "Die-off",
+                      enabled: true,
+                      position: "start",
+                      backgroundColor: "#000",
+                      color: "#fff",
+                      font: { size: 10 }
+                    }
+                  }))
+                : []
+            }
+          }
+        }
+      });
+
+      const fm = d=>new Date(d).toLocaleDateString(undefined,{
+        month: "long", day: "numeric"
+      });
+      let text = `From ${fm(start)} to ${fm(end)}, you plotted `
+               + selected.map(s=>sensorMap.broodminder.concat(sensorMap.diy)
+                   .find(x=>x[0]===s)[1]).join(", ")
+               + `. The hive’s temp rose ${summary.broodCount} `
+               + (summary.broodCount===1? "time" : "times")
+               + ` (brood-rearing) and dropped ${summary.dieCount} `
+               + (summary.dieCount===1? "time" : "times")
+               + ` (possible die-offs).`;
+      if (summary.largestBrood) {
+        text += ` Largest rise was ${summary.largestBrood.change} °C `
+             + `on ${fm(summary.largestBrood.date)}.`;
+      }
+      if (summary.largestDie) {
+        text += ` Sharpest drop was ${summary.largestDie.change} °C `
+             + `on ${fm(summary.largestDie.date)}.`;
+      }
+      sumText.textContent = text;
+    };
+  </script>
+</body>
+</html>

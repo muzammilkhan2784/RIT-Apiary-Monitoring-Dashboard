@@ -1,0 +1,1 @@
+db.createCollection("hive_readings", { timeseries: { timeField: "timestamp", metaField: "hive", granularity: "minutes" } })
