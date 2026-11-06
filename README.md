@@ -1,93 +1,56 @@
-# 🐝 ISTE-438 Bonus Project: RIT Apiary Data Dashboard
+# RIT Apiary Data Dashboard
 
-## Summary of Work Completed
+An interactive dashboard for monitoring beehive health at the RIT Apiary, built with **MongoDB, Flask and Chart.js**.
+It brings together **BroodMinder** and **DIY** sensor data for Hives B, C and E, plots any combination of sensors
+over time, and flags likely colony events automatically.
 
-For the bonus project, I built a complete interactive data dashboard to visualize RIT Apiary sensor data using MongoDB, Flask, and Chart.js. The app integrates **BroodMinder** and **DIY sensors** across Hives B, C, and E, offering time-based insight into hive conditions such as temperature, humidity, and acoustics.
+![Dashboard: Hive B temperature over the full season](assets/dashboard.png)
 
-### Features Implemented
+## Features
 
-- **MongoDB Time-Series Collection**
-  - Created `hive_readings` with `timestamp` as `timeField` and `hive` as `metaField`.
-  - Enables efficient time-based querying and aggregation.
+- **MongoDB time-series collection:** `hive_readings` uses `timestamp` as the time field and `hive` as the meta field,
+  so range queries per hive stay fast. The importer loads about **95,000 readings** from both sources.
+- **Data import:** `import.py` cleans and loads the BroodMinder CSV exports (temperature, humidity, battery, radar, audio)
+  and the DIY sensor logs (hive temperature, humidity, acoustics, external temperature and pressure, battery).
+- **Interactive controls:** choose a hive, a sensor source (BroodMinder, DIY or both), any set of sensors and a date range.
+- **Colony event detection:** a sharp temperature rise (≥ +2.5) is marked as likely brood-rearing, and a sharp drop
+  (≤ −3) as a possible die-off. Events are reduced to the strongest one per day and drawn on the chart.
+- **Moving-average overlay** to smooth noisy sensors.
+- **At-a-glance numbers:** readings plotted, latest value, and brood-rearing and die-off day counts.
+- **Plain-language summary:** for example, *"From Nov 13 to Nov 27, Hive C's temperature rose sharply on 6 days
+  (likely brood-rearing) and dropped sharply on 4 days (possible die-offs)."*
+- **Shareable views:** URL parameters preset the view, for example
+  `/?hive=C&sensors=temperature&sensors=hive_temp&start=2024-11-13&end=2024-11-27`.
 
-- **Data Import**
-  - Parsed and imported all **BroodMinder CSVs** (temperature, humidity, battery, radar, audio).
-  - Parsed **DIY sensor logs** (hive temperature, acoustics, external pressure, etc.).
-  - Used custom `import.py` script for cleaning and formatting.
+## Screenshots
 
-- **Interactive Flask App**
-  - User can:
-    - Choose Hive (B, C, E) and Source (BroodMinder, DIY, or Both).
-    - Select individual sensors to graph.
-    - Filter by date range (via date picker).
-    - Toggle **Moving Average** smoothing.
-    - Toggle **Colony Event Detection** overlay.
+### Two-week view: BroodMinder and DIY sensors together, with moving averages and event markers
+![Hive C, two-week view](assets/dashboard-zoom.png)
 
-- **Colony Event Detection**
-  - Detects:
-    - **Brood-rearing** → sharp temp rise (≥ +2.5°C).
-    - **Die-offs** → sharp drop (≤ -3°C).
-  - Annotated on the chart with:
-    - Green lines for brood-rearing.
-    - Red lines for die-offs.
+## Running it locally
 
-- **User-Friendly Summary**
-  - After plotting, an auto-generated summary appears:
-    - "From Oct 28 to Nov 28, Hive B’s temperature rose 8 times and dropped 5 times..."
-  - Language is readable for non-experts (no jargon).
+1. Install and start [MongoDB Community Server](https://www.mongodb.com/try/download/community) on `localhost:27017`.
+2. Install the Python packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Load the sensor data into the `apiary` database:
+   ```bash
+   python import.py
+   ```
+4. Start the dashboard and open http://127.0.0.1:5000:
+   ```bash
+   python apiary_dashboard/app.py
+   ```
 
-- **Polished UI**
-  - Aesthetic improvements:
-    - Modern layout, spacing, and font use.
-    - Styled dropdowns, checkboxes, and button.
-    - Responsive layout.
-    - Clearly grouped sensors by source (BroodMinder vs DIY).
-    - Friendly date format: `Nov 12, 2024`.
+## Project structure
 
----
-
-## 📸 Screenshots
-
-### Main Page UI
-> Shows clean layout, Hive + Source selectors, sensors, and date range.
-
-![Main Page](assets/mainpage.png)
-
----
-
-### Hive Temperature with Moving Avg and Event Markers
-> Temperature chart with green brood-rearing and red die-off markers, and moving average overlay.
-
-![Moving Average and Events](assets/movingavgandeventmarker.png)
-
----
-
-### Example BroodMinder Hive Chart
-> BroodMinder sensor data plotted with multiple variables.
-
-![BroodMinder Example](assets/broodminderhivebexample.png)
-
----
-
-### Generated Summary Paragraph
-> Summary written in simple language explaining the hive activity.
-
-![Summary](assets/eventsummary.png)
-
----
-
-## Bonus Points Expected: **3**
-
-I believe this project meets the full 3-point bonus criteria because:
-
-- ✅ Designed a MongoDB time-series model.
-- ✅ Imported both BroodMinder and DIY datasets.
-- ✅ Built an interactive Flask + Chart.js visualization dashboard.
-- ✅ Added advanced features:
-  - Automatic colony event detection.
-  - Moving average overlay.
-  - Clean UI with responsive layout.
-
----
-
-### Thank you!
+```
+import.py                    # cleans and loads BroodMinder CSVs and DIY logs into MongoDB
+2025-04-22/                  # BroodMinder CSV exports
+hive b.txt, hive c.txt, ...  # DIY sensor logs
+apiary_dashboard/
+  app.py                     # Flask app: /data endpoint and event detection
+  templates/index.html       # dashboard UI (Chart.js)
+  static/style.css
+```

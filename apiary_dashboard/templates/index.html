@@ -2,239 +2,215 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>🐝 RIT Apiary Data Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RIT Apiary Data Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.3.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
 <body>
-  <h1>🐝 RIT Apiary Data Dashboard</h1>
+<div class="grid-bg" aria-hidden="true"></div>
 
+<header class="top">
+  <div class="brand"><span>~/</span>rit-apiary<span>_</span>dashboard</div>
+  <div class="top__meta"><span class="live"></span>Hives B · C · E — BroodMinder + DIY sensors</div>
+</header>
 
-  <div class="controls-row">
-    <label>Hive:
-      <select id="hive">
-        <option value="B">Hive B</option>
-        <option value="C">Hive C</option>
-        <option value="E">Hive E</option>
-      </select>
-    </label>
-    <label>Sensor Source:
-      <select id="source">
-        <option value="both">Both</option>
-        <option value="broodminder">BroodMinder</option>
-        <option value="diy">DIY</option>
-      </select>
-    </label>
-  </div>
+<div class="layout">
+  <aside>
+    <div class="panel">
+      <h2>01 · Hive</h2>
+      <div class="field">
+        <div class="seg" id="hiveSeg">
+          <label><input type="radio" name="hive" value="B" checked><span>Hive B</span></label>
+          <label><input type="radio" name="hive" value="C"><span>Hive C</span></label>
+          <label><input type="radio" name="hive" value="E"><span>Hive E</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="source">Sensor source</label>
+        <select id="source">
+          <option value="both">Both</option>
+          <option value="broodminder">BroodMinder</option>
+          <option value="diy">DIY</option>
+        </select>
+      </div>
+    </div>
 
-  
-  <div class="sensor-row" id="sensorsContainer">
-    <span class="sensor-label">Sensors:</span>
-   
-  </div>
+    <div class="panel">
+      <h2>02 · Sensors</h2>
+      <div id="sensorsContainer"></div>
+    </div>
 
+    <div class="panel">
+      <h2>03 · Range &amp; overlays</h2>
+      <div class="two field">
+        <div><label for="start">Start</label><input type="date" id="start" value="2024-10-17"></div>
+        <div><label for="end">End</label><input type="date" id="end" value="2025-04-21"></div>
+      </div>
+      <label class="toggle">Moving average <input type="checkbox" id="showMA" checked></label>
+      <label class="toggle">Colony event markers <input type="checkbox" id="showEV" checked></label>
+      <button id="loadBtn" class="btn">▸ Plot</button>
+    </div>
+  </aside>
 
-  <div class="controls-row">
-    <label>Start:
-      <input type="date" id="start">
-    </label>
-    <label>End:
-      <input type="date" id="end">
-    </label>
-    <label><input type="checkbox" id="showMA"> Moving Avg</label>
-    <label><input type="checkbox" id="showEV"> Event Markers</label>
-  </div>
+  <main>
+    <div class="kpis">
+      <div class="kpi kpi--acc"><span>Readings plotted</span><b id="kReadings">—</b></div>
+      <div class="kpi"><span>Latest value</span><b id="kLatest">—</b></div>
+      <div class="kpi kpi--good"><span>Brood-rearing days</span><b id="kBrood">—</b></div>
+      <div class="kpi kpi--bad"><span>Possible die-off days</span><b id="kDie">—</b></div>
+    </div>
 
-  <!-- 4) Plot button -->
-  <div class="action-row">
-    <button id="loadBtn" class="btn-plot">Plot</button>
-  </div>
+    <div class="panel">
+      <div class="chart-head">
+        <h1 id="chartTitle">Hive B</h1>
+        <p id="chartRange"></p>
+      </div>
+      <div class="chart-wrap"><canvas id="myChart"></canvas></div>
+      <div class="legend-note">
+        <span><i style="background:#4ade80"></i>brood-rearing (rise ≥ 2.5 °C)</span>
+        <span><i style="background:#f87171"></i>possible die-off (drop ≥ 3 °C)</span>
+        <span><i style="background:#8a9bb2;height:0;border-top:2px dashed #8a9bb2"></i>moving average</span>
+      </div>
+    </div>
 
-  <!-- 5) Chart -->
-  <div id="chartContainer">
-    <canvas id="myChart"></canvas>
-  </div>
+    <div class="panel summary">
+      <h2>Event summary</h2>
+      <p id="summaryText">Pick a hive and at least one sensor, then click Plot.</p>
+    </div>
+  </main>
+</div>
 
-  <!-- 6) Friendly Summary -->
-  <div class="summary">
-    <h2>Event Summary</h2>
-    <p id="summaryText">Select sensors &amp; dates above, then click Plot.</p>
-  </div>
+<script>
+  const sensorMap = {
+    broodminder: [
+      ["temperature","Temperature"], ["humidity","Humidity"], ["battery","Battery"],
+      ["chargeremaining","Charge remaining"], ["radar1","Radar 1"], ["radar2","Radar 2"],
+      ["audio1","Audio 1"], ["audio2","Audio 2"]
+    ],
+    diy: [
+      ["hive_temp","Hive temp"], ["hive_humidity","Hive humidity"], ["hive_acoustics","Acoustics"],
+      ["external_temp","External temp"], ["external_pressure","External pressure"], ["battery_life","Battery life"]
+    ]
+  };
+  const ALL = sensorMap.broodminder.concat(sensorMap.diy);
+  const labelOf = (key) => ALL.find((x) => x[0] === key)[1];
+  const PALETTE = ["#5eead4", "#7c9cff", "#fbbf24", "#f472b6", "#a78bfa", "#38bdf8", "#fb923c", "#a3e635"];
 
-  <script>
-    const sensorMap = {
-      broodminder: [
-        ["temperature","Temperature Reading"],
-        ["humidity","Humidity"],
-        ["battery","Battery Level"],
-        ["chargeremaining","Charge Remaining"],
-        ["radar1","Radar 1"],
-        ["radar2","Radar 2"],
-        ["audio1","Audio 1"],
-        ["audio2","Audio 2"]
-      ],
-      diy: [
-        ["hive_temp","Hive Temperature"],
-        ["hive_humidity","Hive Humidity"],
-        ["hive_acoustics","Hive Acoustics"],
-        ["external_temp","External Temp"],
-        ["external_pressure","External Pressure"],
-        ["battery_life","Battery Life"]
-      ]
-    };
+  const srcEl = document.getElementById("source"),
+        sensorsCt = document.getElementById("sensorsContainer"),
+        startEl = document.getElementById("start"),
+        endEl = document.getElementById("end"),
+        maEl = document.getElementById("showMA"),
+        evEl = document.getElementById("showEV"),
+        btn = document.getElementById("loadBtn"),
+        sumText = document.getElementById("summaryText");
+  let chart;
+  const hive = () => document.querySelector("input[name='hive']:checked").value;
 
-    const hiveEl    = document.getElementById("hive"),
-          srcEl     = document.getElementById("source"),
-          sensorsCt = document.getElementById("sensorsContainer"),
-          startEl   = document.getElementById("start"),
-          endEl     = document.getElementById("end"),
-          maEl      = document.getElementById("showMA"),
-          evEl      = document.getElementById("showEV"),
-          sumText   = document.getElementById("summaryText");
-    let chart;
+  function renderSensors() {
+    const groups = srcEl.value === "both" ? ["broodminder", "diy"] : [srcEl.value];
+    sensorsCt.innerHTML = groups.map((g) => `
+      <div class="group">${g === "diy" ? "DIY sensors" : "BroodMinder"}</div>
+      <div class="chips">${sensorMap[g].map(([v, l]) =>
+        `<label class="chip"><input type="checkbox" name="sensor" value="${v}" ${v === "temperature" ? "checked" : ""}><span>${l}</span></label>`
+      ).join("")}</div>`).join("");
+  }
+  srcEl.onchange = renderSensors;
 
-    function renderSensors(){
-      const list = (srcEl.value === "both")
-        ? sensorMap.broodminder.concat(sensorMap.diy)
-        : sensorMap[srcEl.value];
-      sensorsCt.innerHTML = `<span class="sensor-label">Sensors:</span>`
-        + list.map(([val,label])=>
-            `<label><input type="checkbox" name="sensor" value="${val}"> ${label}</label>`
-          ).join("");
-    }
-    srcEl.onchange = renderSensors;
-    window.onload   = renderSensors;
+  // Optional URL parameters, e.g. ?hive=C&sensors=temperature&start=2024-11-01&end=2024-11-30
+  const q = new URLSearchParams(location.search);
+  if (q.get("hive")) document.querySelector(`input[name='hive'][value='${q.get("hive")}']`).checked = true;
+  if (q.get("source")) srcEl.value = q.get("source");
+  if (q.get("start")) startEl.value = q.get("start");
+  if (q.get("end")) endEl.value = q.get("end");
+  renderSensors();
+  if (q.getAll("sensors").length) {
+    document.querySelectorAll("input[name='sensor']").forEach((cb) => (cb.checked = q.getAll("sensors").includes(cb.value)));
+  }
 
-    const PALETTE = [
-      "#4e79a7","#f28e2b","#e15759","#76b7b2",
-      "#59a14f","#edc949","#af7aa1","#ff9da7"
-    ];
+  Chart.defaults.color = "#8a9bb2";
+  Chart.defaults.font.family = "'JetBrains Mono', monospace";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.borderColor = "#1d2836";
 
-    document.getElementById("loadBtn").onclick = async () => {
-      const hive   = hiveEl.value,
-            source = srcEl.value,
-            start  = startEl.value,
-            end    = endEl.value,
-            showMA = maEl.checked,
-            showEV = evEl.checked;
+  const fmt = (d) => new Date(d.length === 10 ? d + "T00:00" : d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 
-      const selected = Array.from(
-        document.querySelectorAll("input[name='sensor']:checked")
-      ).map(cb=>cb.value);
+  async function plot() {
+    const selected = [...document.querySelectorAll("input[name='sensor']:checked")].map((cb) => cb.value);
+    if (!selected.length) { sumText.textContent = "Select at least one sensor to plot."; return; }
 
-      if (!selected.length) {
-        alert("Please select at least one sensor.");
-        return;
-      }
+    btn.disabled = true; btn.textContent = "Loading…";
+    const params = new URLSearchParams({ hive: hive(), source: srcEl.value, start: startEl.value, end: endEl.value });
+    selected.forEach((s) => params.append("sensors", s));
+    const { series, events, summary } = await (await fetch(`/data?${params}`)).json();
+    btn.disabled = false; btn.textContent = "▸ Plot";
 
-      const params = new URLSearchParams({ hive, source, start, end });
-      selected.forEach(s=>params.append("sensors", s));
-      const res = await fetch(`/data?${params}`);
-      const { series, events, summary } = await res.json();
-
-      series.forEach(s=>{
-        s.mavg = s.points.map((p,i,a)=>{
-          const slice = a.slice(Math.max(0,i-4), i+1).map(o=>o.y);
-          return slice.reduce((sum,x)=>sum+x,0)/slice.length;
-        });
+    const datasets = series.flatMap((s, i) => {
+      const color = PALETTE[i % PALETTE.length];
+      const main = {
+        label: labelOf(s.sensor), data: s.points, borderColor: color, backgroundColor: color + "1f",
+        fill: true, tension: 0.25, pointRadius: 0, borderWidth: 1.6
+      };
+      if (!maEl.checked) return [main];
+      const mavg = s.points.map((p, j, a) => {
+        const w = a.slice(Math.max(0, j - 4), j + 1);
+        return { x: p.x, y: w.reduce((t, o) => t + o.y, 0) / w.length };
       });
+      return [main, { label: `${labelOf(s.sensor)} · avg`, data: mavg, borderColor: color, borderDash: [5, 5],
+        fill: false, tension: 0.25, pointRadius: 0, borderWidth: 1.2 }];
+    });
 
-      if (chart) chart.destroy();
+    const annotations = evEl.checked ? events.map((e) => ({
+      type: "line", xMin: e.date, xMax: e.date, borderWidth: 1.2,
+      borderColor: e.type === "brood-rearing" ? "rgba(74,222,128,.55)" : "rgba(248,113,113,.55)"
+    })) : [];
 
-      const datasets = series.flatMap((s,i)=>{
-        const color = PALETTE[i % PALETTE.length];
-        const label = sensorMap.broodminder.concat(sensorMap.diy)
-          .find(x=>x[0]===s.sensor)[1];
-        const main = {
-          label,
-          data: s.points,
-          parsing: { xAxisKey:"x", yAxisKey:"y" },
-          backgroundColor: color + "33",
-          borderColor: color,
-          fill: true,
-          tension: 0.2
-        };
-        if (showMA) {
-          return [ main, {
-            label: `${label} (Moving Average)`,
-            data: s.points.map((p,i)=>({x:p.x,y:s.mavg[i]})),
-            borderColor: color,
-            backgroundColor: "transparent",
-            borderDash: [5,5],
-            fill: false,
-            tension: 0.2
-          }];
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById("myChart"), {
+      type: "line",
+      data: { datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false, parsing: { xAxisKey: "x", yAxisKey: "y" },
+        interaction: { mode: "nearest", axis: "x", intersect: false },
+        scales: {
+          x: { type: "time", time: { unit: "week", tooltipFormat: "MMM d, yyyy HH:mm", displayFormats: { week: "MMM d" } },
+               grid: { color: "#141c27" } },
+          y: { grid: { color: "#141c27" } }
+        },
+        plugins: {
+          legend: { position: "top", align: "end", labels: { boxWidth: 12, boxHeight: 2 } },
+          tooltip: { backgroundColor: "#0e141d", borderColor: "#2a3a4d", borderWidth: 1, titleColor: "#d8e2ef" },
+          annotation: { annotations }
         }
-        return [main];
-      });
-
-      chart = new Chart(myChart, {
-        type: "line",
-        data: { datasets },
-        options: {
-          responsive: true,
-          scales: {
-            x: {
-              type: "time",
-              time: {
-                unit: "day",
-                stepSize: 7,
-                displayFormats: { day:"MMM d, yyyy" },    // <— show year
-                tooltipFormat: "MMM d, yyyy"
-              },
-              ticks: { autoSkip: true }
-            }
-          },
-          plugins: {
-            legend: { position: "top" },
-            annotation: {
-              annotations: showEV
-                ? events.map(e=>({
-                    type: "line",
-                    xMin: e.date, xMax: e.date,
-                    borderColor: e.type==="brood-rearing"
-                                  ? "#2ca02c" : "#d62728",
-                    borderWidth: 2,
-                    label: {
-                      content: e.type==="brood-rearing"
-                               ? "Brood-rearing" : "Die-off",
-                      enabled: true,
-                      position: "start",
-                      backgroundColor: "#000",
-                      color: "#fff",
-                      font: { size: 10 }
-                    }
-                  }))
-                : []
-            }
-          }
-        }
-      });
-
-      const fm = d=>new Date(d).toLocaleDateString(undefined,{
-        month: "long", day: "numeric"
-      });
-      let text = `From ${fm(start)} to ${fm(end)}, you plotted `
-               + selected.map(s=>sensorMap.broodminder.concat(sensorMap.diy)
-                   .find(x=>x[0]===s)[1]).join(", ")
-               + `. The hive’s temp rose ${summary.broodCount} `
-               + (summary.broodCount===1? "time" : "times")
-               + ` (brood-rearing) and dropped ${summary.dieCount} `
-               + (summary.dieCount===1? "time" : "times")
-               + ` (possible die-offs).`;
-      if (summary.largestBrood) {
-        text += ` Largest rise was ${summary.largestBrood.change} °C `
-             + `on ${fm(summary.largestBrood.date)}.`;
       }
-      if (summary.largestDie) {
-        text += ` Sharpest drop was ${summary.largestDie.change} °C `
-             + `on ${fm(summary.largestDie.date)}.`;
-      }
-      sumText.textContent = text;
-    };
-  </script>
+    });
+
+    const total = series.reduce((t, s) => t + s.points.length, 0);
+    const first = series.find((s) => s.points.length);
+    document.getElementById("kReadings").textContent = total.toLocaleString();
+    document.getElementById("kLatest").textContent = first ? first.points.at(-1).y.toFixed(1) : "—";
+    document.getElementById("kBrood").textContent = summary.broodCount;
+    document.getElementById("kDie").textContent = summary.dieCount;
+    document.getElementById("chartTitle").textContent = `Hive ${hive()} · ${selected.map(labelOf).join(", ")}`;
+    document.getElementById("chartRange").textContent = `${fmt(startEl.value)} → ${fmt(endEl.value)}`;
+
+    const times = (n) => `${n} ${n === 1 ? "day" : "days"}`;
+    let text = `From <b>${fmt(startEl.value)}</b> to <b>${fmt(endEl.value)}</b>, Hive ${hive()}'s temperature rose sharply on `
+      + `<b>${times(summary.broodCount)}</b> (likely brood-rearing) and dropped sharply on <b>${times(summary.dieCount)}</b> (possible die-offs).`;
+    if (summary.largestBrood) text += ` The largest rise was <b>${summary.largestBrood.change} °C</b> on ${fmt(summary.largestBrood.date)}.`;
+    if (summary.largestDie) text += ` The sharpest drop was <b>${summary.largestDie.change} °C</b> on ${fmt(summary.largestDie.date)}.`;
+    if (!total) text = "No readings for this hive, sensor and date range. Try another sensor or a wider range.";
+    sumText.innerHTML = text;
+  }
+
+  btn.onclick = plot;
+  plot();
+</script>
 </body>
 </html>
